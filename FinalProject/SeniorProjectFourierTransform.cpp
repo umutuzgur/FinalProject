@@ -7,7 +7,6 @@
 //
 
 #include "opencv2/core/core.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 
@@ -15,7 +14,7 @@ using namespace cv;
 
 int main(int argc, char ** argv)
 {
-    const char* filename = argc >=2 ? argv[1] : "lena.jpg";
+    const char* filename = argc >=2 ? argv[1] : "Pictures/shelf1.jpg";
     
     Mat I = imread(filename, IMREAD_GRAYSCALE);
     if( I.empty())
@@ -28,9 +27,9 @@ int main(int argc, char ** argv)
     
     Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
     Mat complexI;
-    merge(planes, 2, complexI);         // Add to the expanded another plane with zeros
+    merge(planes, 2, complexI);         // Add to the expanded another plane with zero
     
-    dft(complexI, complexI);            // this way the result may fit in the source matrix
+    dft(complexI, complexI);// this way the result may fit in the source matrix
     
     // compute the magnitude and switch to logarithmic scale
     // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
@@ -68,6 +67,8 @@ int main(int argc, char ** argv)
     imshow("Input Image"       , I   );    // Show the result
     imshow("spectrum magnitude", magI);
     waitKey();
+
+
     
     return 0;
 }
