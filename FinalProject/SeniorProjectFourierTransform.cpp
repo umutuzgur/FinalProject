@@ -19,9 +19,15 @@ void swapQuadrants(Mat mat);
 
 void zeroQuadrants(Mat mat, int width, int height);
 
-void lowPassFilter(Mat planes[]);
+void zeroPoints(Mat mat, vector<Point> points);
+
+void lowPassFilter(Mat planes[], int dimension);
 
 void baseBandFilter(Mat planes[]);
+
+vector<Point> findPointsOverThreshold(Mat mat, double threshold, int radius);
+
+Point pointWithTheHighestFrequency(Mat mat, int radius);
 
 int main(int argc, char **argv) {
     const char *filename = argc >= 2 ? argv[1] : "Pictures/shelf1.jpg";
@@ -45,9 +51,15 @@ int main(int argc, char **argv) {
     split(complexI, planes);
 
 
-    lowPassFilter(planes);
-    //baseBandFilter(planes);
+//    lowPassFilter(planes,50);
+//    baseBandFilter(planes);
+//    vector<Point> points = findPointsOverThreshold(planes[0], 1, 150);
 
+    Point maxValue = pointWithTheHighestFrequency(planes[0], 50);
+
+
+    //zeroPoints(planes[0],points);
+    //zeroPoints(planes[1],points);
 
     Mat magIClone = planes[0].clone();
 
@@ -59,22 +71,46 @@ int main(int argc, char **argv) {
     magI += Scalar::all(1);                    // switch to logarithmic scale
     log(magI, magI);
 
+
+
+
+
     // crop the spectrum, if it has an odd number of rows or columns
     magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
 
+    int mCx = magI.cols/2;
+    int mCy = magI.rows/2;
+
+    Point swappedPoint = Point((maxValue.x+mCx)%magI.cols,(maxValue.y+mCy)%magI.rows);
+
+    cout << "Freq: " << swappedPoint.x - mCx << endl;
+
+
 
     swapQuadrants(magI);
+    circle(planes[0], swappedPoint, 5, Scalar(0), 10, 8, 0);
+
 
     normalize(magI, magI, 0, 1, NORM_MINMAX);
+
     // Transform the matrix with float values into a
     // viewable image form (float between values 0 and 1).
 
+    line(I,Point(mCx,mCy),Point(I.cols/abs(swappedPoint.x - mCx) + mCx,mCy),Scalar(255,255,255),5);
+
+
     imshow("Input Image", I);    // Show the result
     imshow("spectrum magnitude", magI);
+
     waitKey();
 
+
+    //Reverse
     vector<Mat> channels;
-    //reverse
+
+
+//    magIClone.at<float>(maxValue) = 0;
+//    planes[1].at<float>(maxValue) = 0;
 
     channels.push_back(magIClone);
     channels.push_back(planes[1]);
@@ -87,6 +123,8 @@ int main(int argc, char **argv) {
     cv::dft(temp, inverseTransform, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
 
     normalize(inverseTransform, inverseTransform, 0, 1, NORM_MINMAX);
+
+
 
     imshow("Reconstructed", inverseTransform);
 
@@ -135,20 +173,68 @@ void zeroQuadrants(Mat mat, int width, int height) {
 
 }
 
-void lowPassFilter(Mat planes[]) {
-    zeroQuadrants(planes[0], 60, 60);
-    zeroQuadrants(planes[1], 60, 60);
+void lowPassFilter(Mat planes[], int dimension) {
+    zeroQuadrants(planes[0], dimension, dimension);
+    zeroQuadrants(planes[1], dimension, dimension);
 }
 
-void baseBandFilter(Mat planes[]){
+void baseBandFilter(Mat planes[]) {
 
     swapQuadrants(planes[0]);
     swapQuadrants(planes[1]);
 
-    circle(planes[0], Point(planes[0].cols/2,planes[0].rows/2), 150, Scalar(0), 150, 8, 0);
-    circle(planes[1], Point(planes[1].cols/2,planes[1].rows/2), 150, Scalar(0), 150, 8, 0);
+    circle(planes[0], Point(planes[0].cols / 2, planes[0].rows / 2), 200, Scalar(0), 100, 8, 0);
+    circle(planes[1], Point(planes[1].cols / 2, planes[1].rows / 2), 200, Scalar(0), 100, 8, 0);
 
     swapQuadrants(planes[0]);
     swapQuadrants(planes[1]);
 
 }
+
+vector<Point> findPointsOverThreshold(Mat mat, double threshold, int radius) {
+    vector<Point> points;
+    for (int row = 0; row < mat.rows; ++row) {
+        for (int col = 0; col < mat.cols; ++col) {
+            double value = mat.at<float>(row, col);
+            if ((row < radius || row > mat.rows - radius) && (col < radius || col > mat.cols - radius))
+                continue;
+
+            if (value > threshold)
+                points.push_back(Point(col, row));
+
+
+        }
+    }
+    return points;
+}
+
+void zeroPoints(Mat mat, vector<Point> points) {
+    for (Point point: points) {
+        mat.at<float>(point) = 0;
+    }
+}
+
+Point pointWithTheHighestFrequency(Mat mat, int radius) {
+    double max = 0;
+    double min = DBL_MAX;
+    Point pointMax, pointMin;
+    for (int row = 0; row < mat.rows; ++row) {
+        for (int col = 0; col < mat.cols; ++col) {
+            double value = mat.at<float>(row, col);
+            if ((row < radius || row > mat.rows - radius) && (col < radius || col > mat.cols - radius))
+                continue;
+
+            if (value > max) {
+                max = value;
+                pointMax = Point(col, row);
+            }
+            if (value < min) {
+                min = value;
+                pointMin = Point(col, row);
+            }
+        }
+    }
+
+    return abs(max) > abs(min) ? pointMax : pointMin;
+}
+
